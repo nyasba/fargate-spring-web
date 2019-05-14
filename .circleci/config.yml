@@ -1,6 +1,6 @@
 version: 2.1
 jobs:
-  test:
+  build:
     working_directory: ~/workspace
     docker:
       - image: circleci/openjdk:11-jdk
@@ -34,5 +34,5 @@ jobs:
 workflows:
   test_and_push_image:
     jobs:
-      - test
+      - build
         
