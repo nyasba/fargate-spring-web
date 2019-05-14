@@ -1,6 +1,7 @@
 plugins {
 	id 'org.springframework.boot' version '2.1.4.RELEASE'
 	id 'java'
+    id 'com.google.cloud.tools.jib' version '1.2.0'
 }
 
 apply plugin: 'io.spring.dependency-management'
@@ -25,4 +26,17 @@ dependencies {
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+jib {
+    from {
+        image = 'openjdk:11'
+    }
+    to {
+        // 認証情報は AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY という環境変数で指定しておくこと
+        // ORG_GRADLE_PROJECT_ACCOUNT_ID でAWSアカウントIDを認証情報に設定する
+        image = "${ACCOUNT_ID}.dkr.ecr.ap-northeast-1.amazonaws.com/webapp"
+        credHelper = 'ecr-login'
+        tags = ['latest']
+    }
 }
