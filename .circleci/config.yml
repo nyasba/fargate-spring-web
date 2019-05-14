@@ -23,6 +23,9 @@ jobs:
           name: download go
           command: wget -O - "https://dl.google.com/go/go1.12.5.linux-amd64.tar.gz" | tar -zxvf - -C ./ 
       - run:
+          name: set go path
+          command: echo 'export PATH=$HOME/go/bin:$PATH' >> $BASH_ENV 
+      - run:
           name: get ecr-helper
           command: ./go/bin/go get -u github.com/awslabs/amazon-ecr-credential-helper/ecr-login/cli/docker-credential-ecr-login
       - run:
