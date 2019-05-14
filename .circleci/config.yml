@@ -1,0 +1,31 @@
+version: 2.1
+jobs:
+  test:
+    working_directory: ~/workspace
+    docker:
+      - image: circleci/oepnjdk:11-jdk
+    steps:
+      - checkout
+      - run:
+          name: run test
+          command: ./gradlew test
+  push_image:
+    working_directory: ~/workspace
+    docker:
+      - image: circleci/oepnjdk:11-jdk
+    steps:
+      - checkout
+      - run:
+          name: download go
+          command: wget -O - "https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-amd64.tar.gz" | tar zxvf - -C /home/circleci/project
+      - run:
+          name: get ecr-helper
+          command: ./go/bin/go get -u github.com/awslabs/amazon-ecr-credential-helper/ecr-login/cli/docker-credential-ecr-login
+      - run:
+          name: push ecr
+          command: export PATH=$PATH:/home/circleci/go/bin/ ; ./gradlew jib
+workflows:
+  test_and_push_image:
+    jobs:
+      - test
+      - push_image
