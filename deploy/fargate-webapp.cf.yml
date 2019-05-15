@@ -1,0 +1,257 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: 'fargate web service'
+Metadata:
+  "AWS::CloudFormation::Interface":
+    ParameterGroups:
+      - Label:
+          default: "Project Name Prefix"
+        Parameters:
+          - ProjectName
+      - Label:
+          default: "Fargate Configuration"
+        Parameters:
+          - ECRRepositoryName
+          - ECSTaskCPUUnit
+          - ECSTaskMemory
+          - ECSTaskDesiredCount
+          - TaskExecutionRoleName
+          - AutoscalingRoleName
+      - Label:
+          default: "Netowork Configuration"
+        Parameters:
+          - VpcId
+          - ALBSubnets
+
+# ------------------------------------------------------------#
+# Input Parameters
+# ------------------------------------------------------------# 
+Parameters:
+  ProjectName:
+    Type: String
+    Default: "fargate-webapp"
+
+#Network Configurations
+  VpcId:
+    Description : "VPC ID"
+    Type: AWS::EC2::VPC::Id
+  ALBSubnets:
+    Description : "ALB Subnet"
+    Type : "List<AWS::EC2::Subnet::Id>"
+
+#ECSTask Configurations
+  ECRRepositoryName:
+    Type: String
+    Default: "webapp"
+  ECSTaskCPUUnit:
+    AllowedValues: [ 256, 512, 1024, 2048, 4096  ]
+    Type: String
+    Default: "256"
+  ECSTaskMemory:
+    AllowedValues: [ 256, 512, 1024, 2048, 4096  ]
+    Type: String
+    Default: "512"
+  ECSTaskDesiredCount:
+    Type: Number
+    Description: the number of instances
+    Default: 1
+  TaskExecutionRoleName:
+    Type: String
+    Description: A name of task execution role
+    Default: 'ecsTaskExecutionRole'
+  AutoscalingRoleName:
+    Type: String
+    Description: A name of AutoScaling role
+    Default: 'ecsAutoscaleRole'
+
+Resources:
+# ------------------------------------------------------------#
+#  SecurityGroup for ALB
+# ------------------------------------------------------------#
+  ALBSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      VpcId: !Ref VpcId
+      GroupName: !Sub "${ProjectName}-alb-sg"
+      GroupDescription: "-"
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ProjectName}-alb-sg"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: "0.0.0.0/0"
+
+# ------------------------------------------------------------#
+#  SecurityGroup for ECS Service
+# ------------------------------------------------------------#
+  ECSSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      VpcId: !Ref VpcId
+      GroupName: !Sub "${ProjectName}-ecs-sg"
+      GroupDescription: "-"
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ProjectName}-ecs-sg"
+
+  ECSSecurityGroupIngress: 
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties: 
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      SourceSecurityGroupId: !GetAtt [ALBSecurityGroup, GroupId]
+      GroupId: !GetAtt [ECSSecurityGroup, GroupId]
+
+# ------------------------------------------------------------#
+#  Target Group
+# ------------------------------------------------------------#
+  TargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      VpcId: !Ref VpcId
+      Name: !Sub "${ProjectName}-tg"
+      Protocol: HTTP
+      Port: 80
+      TargetType: ip
+      HealthCheckPath: "/healthcheck"
+
+# ------------------------------------------------------------#
+#  Internet ALB
+# ------------------------------------------------------------#
+  InternetALB:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties:
+      Name: !Sub "${ProjectName}-alb"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-alb"
+      Scheme: "internet-facing"
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets: !Ref ALBSubnets
+
+  ALBListener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref InternetALB
+      Port: 80
+      Protocol: HTTP
+
+# ------------------------------------------------------------#
+# ECS Cluster
+# ------------------------------------------------------------#
+  ECSCluster:
+    Type: "AWS::ECS::Cluster"
+    Properties:
+      ClusterName: !Sub "${ProjectName}-cluster"
+
+# ------------------------------------------------------------#
+#  ECS LogGroup
+# ------------------------------------------------------------#
+  ECSLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: !Sub "/ecs/logs/${ProjectName}-ecs-group"
+
+# ------------------------------------------------------------#
+#  ECS TaskDefinition
+# ------------------------------------------------------------#
+  ECSTaskDefinition:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      Cpu: !Ref ECSTaskCPUUnit
+      ExecutionRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/${TaskExecutionRoleName}"
+      Family: !Sub "${ProjectName}-task"
+      Memory: !Ref ECSTaskMemory
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Name: !Sub "${ProjectName}-container"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.ap-northeast-1.amazonaws.com/${ECRRepositoryName}:latest"
+          Environment: 
+            - Name: "Key"
+              Value: "Test"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref ECSLogGroup
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: !Ref ProjectName
+          MemoryReservation: 128
+          PortMappings:
+            - HostPort: 80
+              Protocol: tcp
+              ContainerPort: 80
+
+# ------------------------------------------------------------#
+#  ECS Service
+# ------------------------------------------------------------#
+  ECSService:
+    Type: AWS::ECS::Service
+    DependsOn: ALBListener
+    Properties:
+      Cluster: !Ref ECSCluster
+      DesiredCount: !Ref ECSTaskDesiredCount
+      LaunchType: FARGATE
+      LoadBalancers:
+        - TargetGroupArn: !Ref TargetGroup
+          ContainerPort: 80
+          ContainerName: !Sub "${ProjectName}-container"
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref ECSSecurityGroup
+          Subnets: !Ref ALBSubnets
+      ServiceName: !Sub "${ProjectName}-service"
+      TaskDefinition: !Ref ECSTaskDefinition
+      HealthCheckGracePeriodSeconds: 120 # wait for spring boot app starting
+
+# ------------------------------------------------------------#
+#  Auto Scaling
+# ------------------------------------------------------------#
+  AutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 3
+      MinCapacity: 1
+      ResourceId:
+        Fn::Join:
+        - "/"
+        - - service
+          - !Sub "${ProjectName}-cluster"
+          - Fn::GetAtt:
+            - ECSService
+            - Name
+      RoleARN: !Sub "arn:aws:iam::${AWS::AccountId}:role/${AutoscalingRoleName}"
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  AutoScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: ECSScalingBlogPolicy
+      PolicyType: TargetTrackingScaling 
+      ScalingTargetId: !Ref AutoScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification: 
+          PredefinedMetricType: ECSServiceAverageCPUUtilization 
+        DisableScaleIn: False
+        ScaleInCooldown: 300
+        ScaleOutCooldown: 300
+        TargetValue: 80
+
+Outputs:
+  EndpointUrl:
+    Description: "Endpoint url"
+    Value: !GetAtt InternetALB.DNSName
