@@ -1,0 +1,12 @@
+{
+    "projectName": "fargate-webapp",
+    "profile": "dev",
+    "stackName": "fargate-webapp-dev",
+    "ecrRepositoryName": "webapp",
+    "vpcId": "vpc-12345678",
+    "env": { "account": "1111111111", "region": "ap-northeast-1" },
+    "logGroupName": "fargate-webapp-dev-log-group",
+    "taskExecutionRoleName": "ecsTaskExecutionRole",
+    "containerRoleName": "ecsContainerRole",
+    "autoscalingRoleName": "ecsAutoscaleRole"
+}

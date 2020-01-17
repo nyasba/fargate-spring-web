@@ -46,7 +46,7 @@ https://docs.aws.amazon.com/ja_jp/cli/latest/userguide/cli-configure-profiles.ht
 
 ### 設定
 
-`env/.env.{envKey}`で管理する
+`env/xxx.json`で管理し、cdkdeploy.tsで直接importする
 
 
 ### テスト
@@ -68,7 +68,7 @@ cdk context --clear
 ### cloudformationのテンプレート出力
 
 ```
-cdk synth -c env=dev --profile xxx
+cdk synth --profile xxx
 ```
 
 ### 実施
@@ -78,7 +78,7 @@ cdk synth -c env=dev --profile xxx
 yarn build
 
 # 実行
-cdk deploy -c env=dev --profile xxx
+cdk deploy --profile xxx
 This deployment will make potentially sensitive changes according to your current security approval level (--require-approval broadening).
 Please confirm you intend to make the following modifications:
 
@@ -160,7 +160,7 @@ arn:aws:cloudformation:ap-northeast-1:xxxxxxxxxxxx:stack/fargate-webapp-dev/xxxx
 
 
 # 環境削除
-cdk destroy -c env=dev --profile xxx
+cdk destroy --profile xxx
 ```
 
 

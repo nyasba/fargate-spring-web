@@ -1,2 +1,2 @@
-.env.*
-!.env.example
+*.json
+!example*.json
