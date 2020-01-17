@@ -5,7 +5,7 @@
 ```
 ├── README.md
 ├── bin                     コマンド実行時のエンドポイントとなるtsファイル
-├── cdk.context.json        cdkのcontextで参照したデータの一時ファイル？
+├── cdk.context.json        cdkのcontextで参照したデータの保存ファイル（VPC内のネットワーク構成など次回のStack作成時に変更すべきでないリソースの情報を保存する）
 ├── cdk.json                cdk実行時のapp引数のデフォルト設定ファイル
 ├── cdk.out                 cdkの出力ファイル
 ├── jest.config.js          テスト用の設定ファイル
@@ -16,6 +16,9 @@
 ├── tsconfig.json
 └── yarn.lock               yarnのlockファイル
 ```
+
+※cdk.context.jsonはデプロイした環境が保存されるので本来はGit管理下においておくべきものです
+https://docs.aws.amazon.com/cdk/latest/guide/context.html
 
 ## 開発時のコマンド
 
@@ -38,6 +41,7 @@ yarn add xxx
 * 設定ファイルに指定したECRリポジトリを事前に作り、アプリケーションをpushしておくこと
 
 ### 設定（プロファイル）
+
 https://docs.aws.amazon.com/ja_jp/cli/latest/userguide/cli-configure-profiles.html
 
 ### 設定
@@ -53,6 +57,19 @@ https://docs.aws.amazon.com/ja_jp/cli/latest/userguide/cli-configure-profiles.ht
 * full-grainedテスト：固定値を設定するところばかりのため、ユニットテストが有効な部分が見当たらず不採用
 * validationテスト：カスタムでバリデーション実装していないとあまり意味がないと思い不採用
 
+### コンテキストのクリア
+
+複数環境を管理するならクリアしないといけないと思われる（まだ試していないが）
+
+```
+cdk context --clear
+```
+
+### cloudformationのテンプレート出力
+
+```
+cdk synth -c env=dev --profile xxx
+```
 
 ### 実施
 

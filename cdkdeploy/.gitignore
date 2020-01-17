@@ -6,3 +6,6 @@ node_modules
 # CDK asset staging directory
 .cdk.staging
 cdk.out
+
+# 環境依存の情報が保存されてしまうのでgit対象外とする（公式ドキュメントでは保存しろと書かれているが　https://docs.aws.amazon.com/cdk/latest/guide/context.html）
+cdk.context.json
