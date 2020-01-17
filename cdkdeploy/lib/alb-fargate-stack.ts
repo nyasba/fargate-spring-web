@@ -56,6 +56,7 @@ export class AlbFargateStack extends cdk.Stack {
       vpc: appVpc
     })
     albSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(80))
+    albSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(8080))
     albSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443))
 
     // sg for ecs serivce
@@ -66,9 +67,16 @@ export class AlbFargateStack extends cdk.Stack {
     ecsSecurityGroup.addIngressRule(albSecurityGroup, ec2.Port.tcp(80))
 
     // alb target group
-    const albTargetGroup = new elbv2.ApplicationTargetGroup(this, this.createResourceName('tg'), {
+    const albTargetGroupBlue = new elbv2.ApplicationTargetGroup(this, this.createResourceName('tg-bule'), {
       vpc: appVpc,
-      targetGroupName: this.createResourceName('tg'),
+      targetGroupName: this.createResourceName('tg-bule'),
+      protocol: elbv2.ApplicationProtocol.HTTP,
+      port: 80,
+      healthCheck: { path: "/healthcheck" }
+    })
+    const albTargetGroupGreen = new elbv2.ApplicationTargetGroup(this, this.createResourceName('tg-green'), {
+      vpc: appVpc,
+      targetGroupName: this.createResourceName('tg-green'),
       protocol: elbv2.ApplicationProtocol.HTTP,
       port: 80,
       healthCheck: { path: "/healthcheck" }
@@ -82,10 +90,15 @@ export class AlbFargateStack extends cdk.Stack {
       internetFacing: true,
       securityGroup: albSecurityGroup
     })
-    appAlb.addListener(this.createResourceName('alb-listener'), {
+    appAlb.addListener(this.createResourceName('alb-listener-blue'), {
       protocol: elbv2.ApplicationProtocol.HTTP,
       port: 80,
-      defaultTargetGroups: [albTargetGroup]
+      defaultTargetGroups: [albTargetGroupBlue]
+    })
+    appAlb.addListener(this.createResourceName('alb-listener-green'), {
+      protocol: elbv2.ApplicationProtocol.HTTP,
+      port: 8080,
+      defaultTargetGroups: [albTargetGroupGreen]
     })
 
     // ecs cluster
@@ -139,9 +152,9 @@ export class AlbFargateStack extends cdk.Stack {
       vpcSubnets: appVpc.selectSubnets(this.props.ecsSubnetSelection || { subnetType: ec2.SubnetType.PRIVATE }),
       securityGroup: ecsSecurityGroup,
       healthCheckGracePeriod: Duration.minutes(2),
-      deploymentController: { type: ecs.DeploymentControllerType.ECS }
+      deploymentController: { type: ecs.DeploymentControllerType.CODE_DEPLOY }
     })
-    albTargetGroup.addTarget(appService.loadBalancerTarget({
+    albTargetGroupBlue.addTarget(appService.loadBalancerTarget({
       containerName: appContainerDefinition.containerName,
       containerPort: appContainerDefinition.containerPort
     }))
