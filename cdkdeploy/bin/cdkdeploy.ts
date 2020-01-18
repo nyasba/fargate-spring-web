@@ -2,7 +2,7 @@
 import 'source-map-support/register';
 import * as cdk from '@aws-cdk/core';
 import { AlbFargateStack } from '../lib/alb-fargate-stack';
-import devProps from '../env/nyasba-dev.json'
+import devProps from '../env/example.json'
 
 const app = new cdk.App();
 
