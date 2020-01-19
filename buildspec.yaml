@@ -1,9 +1,9 @@
 version: 0.2
 
-phase:
+phases:
   install:
     runtime-versions:
-      java: corretto8
+      java: corretto11
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
