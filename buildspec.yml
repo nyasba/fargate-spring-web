@@ -9,8 +9,8 @@ phases:
       - echo Logging in to Amazon ECR...
       - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
       - echo Copying from Frontend dist at S3...
-      - ls -l cd $CODEBUILD_SRC_DIR_frontapp
-      - cp -r $CODEBUILD_SRC_DIR_frontapp/dist/ src/main/resources/static
+      - ls -l $CODEBUILD_SRC_DIR_frontapp
+      - cp -r ${CODEBUILD_SRC_DIR_frontapp}/dist/ src/main/resources/static
   build:
     commands:
       - echo Build started on `date`
